@@ -63,3 +63,40 @@ footer { text-align: center; color: #9ca3af; font-size: 13px; padding: 24px 16px
   main { padding: 12px; }
   header { padding: 18px 12px; }
 }
+#chat-log {
+  height: 280px;
+  overflow-y: auto;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  white-space: pre-wrap;
+}
+.bubble.user { margin-left: auto; background: #2563eb; color: #fff; }
+.bubble.assistant { background: #fff; border: 1px solid #e5e7eb; }
+#chat-form { display: flex; gap: 8px; }
+#chat-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+}
+#chat-form button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+#stop-btn { background: #e5e7eb; color: #374151; }
+#stop-btn { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
