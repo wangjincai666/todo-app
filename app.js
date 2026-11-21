@@ -116,3 +116,33 @@ document.querySelector("#chat-form").addEventListener("submit", (e) => {
   sendChat();
 });
 document.querySelector("#stop-btn").addEventListener("click", () => controller?.abort());
+document.querySelector("#agent-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.querySelector("#agent-input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const log = document.querySelector("#agent-log");
+  log.textContent = "思考中…";
+  input.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const body = await res.json();
+    if (body.code !== 0) throw new Error(body.msg);
+
+    const { logs, reply } = body.data;
+    log.textContent =
+      (logs.length
+        ? logs.map(l => `🔧 ${l.tool}(${JSON.stringify(l.args)}) → ${JSON.stringify(l.result)}`).join("\n")
+        : "（这次没有调用工具）") + "\n\n" + reply;
+
+    load();
+  } catch (err) {
+    log.textContent = "出错：" + err.message;
+  }
+});

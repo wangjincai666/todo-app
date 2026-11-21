@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import sqlite3
 from datetime import datetime
@@ -110,6 +111,111 @@ def chat():
                     yield "data: " + json.dumps({"t": text}, ensure_ascii=False) + "\n\n"
 
     return Response(stream_with_context(gen()), mimetype="text/event-stream")
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "add_item",
+            "description": "把一条待办写进数据库。用户说“记一下/帮我加/别忘了”时调用。title 只填要做的事本身，去掉“帮我加一条”这类指令词。例如用户说“帮我加一条明天交实验报告”，title 只填“明天交实验报告”。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "待办内容，保留用户原话，不要改写"}
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_items",
+            "description": "查询待办列表。用户问“还有哪些/有哪些没做完”时调用。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "only_todo": {"type": "boolean", "description": "是否只看未完成的"}
+                },
+                "required": [],
+            },
+        },
+    },
+]
+
+
+def run_tool(name, args):
+    def clean_title(raw):
+        t = (raw or "").strip()
+        t = re.sub(r"^(帮我|请|麻烦|给我|给|再)?\s*(添加|加|记一下|记|记录|新增|新建)\s*(一条|一个|一下)?\s*", "", t)
+        return t.strip(" ，,。.!！") or (raw or "").strip()
+
+    con = get_db()
+    try:
+        if name == "add_item":
+            title = clean_title(args.get("title") or "")
+            if not title:
+                return {"ok": False, "error": "title 为空"}
+            cur = con.execute(
+                "INSERT INTO items (title, created_at) VALUES (?, ?)",
+                (title, datetime.now().isoformat(timespec="seconds")),
+            )
+            con.commit()
+            return {"ok": True, "id": cur.lastrowid}
+
+        if name == "query_items":
+            sql = "SELECT id, title, done FROM items"
+            if args.get("only_todo"):
+                sql += " WHERE done = 0"
+            rows = con.execute(sql + " ORDER BY id DESC").fetchall()
+            return {"ok": True, "items": [dict(r) for r in rows]}
+
+        return {"ok": False, "error": f"未知工具 {name}"}
+    finally:
+        con.close()
+
+
+@app.post("/api/agent")
+def agent():
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify({"code": 400, "data": None, "msg": "text 不能为空"}), 400
+
+    messages = [
+        {"role": "system", "content": "你是待办助手。用户让你记事情就调用 add_item；问有哪些待办就调用 query_items。回答用中文，简短。"},
+        {"role": "user", "content": text},
+    ]
+    logs = []
+    headers = {"Authorization": f"Bearer {os.environ['ZHIPU_API_KEY']}"}
+
+    for _ in range(3):
+        r = requests.post(
+            MODEL_URL,
+            headers=headers,
+            json={"model": MODEL_NAME, "messages": messages, "tools": TOOLS},
+            timeout=60,
+        )
+        msg = r.json()["choices"][0]["message"]
+
+        if not msg.get("tool_calls"):
+            return ok({"reply": msg.get("content", ""), "logs": logs})
+
+        messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": msg["tool_calls"]})
+        for tc in msg["tool_calls"]:
+            name = tc["function"]["name"]
+            try:
+                args = json.loads(tc["function"]["arguments"] or "{}")
+            except Exception:
+                args = {}
+            result = run_tool(name, args)
+            logs.append({"tool": name, "args": args, "result": result})
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+
+    return ok({"reply": "（工具调用超过 3 轮，已停止）", "logs": logs})
 @app.errorhandler(Exception)
 def on_error(e):
     code = getattr(e, "code", 500)
