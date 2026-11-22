@@ -1,5 +1,6 @@
-const API_BASE = "http://127.0.0.1:5000";
-
+const API_BASE = (location.hostname === "127.0.0.1" || location.hostname === "localhost")
+  ? "http://127.0.0.1:5000"
+  : "https://todo-app-yloz.onrender.com";
 async function load() {
   const list = document.querySelector("#list");
   list.innerHTML = "<li>加载中…</li>";

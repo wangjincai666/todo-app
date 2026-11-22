@@ -244,6 +244,7 @@ def on_error(e):
     return jsonify({"code": code, "data": None, "msg": str(e)}), code
 
 
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True, port=5000)
