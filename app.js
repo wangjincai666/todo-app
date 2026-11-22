@@ -17,7 +17,13 @@ async function load() {
     }
 
     list.innerHTML = body.data
-      .map(it => `<li>${it.title} <button data-id="${it.id}">删</button></li>`)
+      .map(it => `
+        <li class="${it.done ? "done" : ""}">
+          <input type="checkbox" data-done="${it.id}" ${it.done ? "checked" : ""}>
+          <span>${it.title}</span>
+          <button data-edit="${it.id}">改</button>
+          <button data-id="${it.id}">删</button>
+        </li>`)
       .join("");
   } catch (e) {
     list.innerHTML = `<li>加载失败：${e.message} <button id="retry">重试</button></li>`;
@@ -42,9 +48,35 @@ document.querySelector("#add-form").addEventListener("submit", async (e) => {
 });
 
 document.querySelector("#list").addEventListener("click", async (e) => {
+  const editId = e.target.dataset.edit;
+  if (editId) {
+    const li = e.target.closest("li");
+    const old = li.querySelector("span").textContent;
+    const next = prompt("改成什么？", old);
+    if (!next || !next.trim()) return;
+    await fetch(`${API_BASE}/api/items/${editId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: next.trim() }),
+    });
+    load();
+    return;
+  }
+
   const id = e.target.dataset.id;
   if (!id) return;
   await fetch(`${API_BASE}/api/items/${id}`, { method: "DELETE" });
+  load();
+});
+
+document.querySelector("#list").addEventListener("change", async (e) => {
+  const box = e.target;
+  if (box.type !== "checkbox") return;
+  await fetch(`${API_BASE}/api/items/${box.dataset.done}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ done: box.checked ? 1 : 0 }),
+  });
   load();
 });
 

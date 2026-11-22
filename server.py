@@ -17,7 +17,7 @@ MODEL_NAME = "glm-4-flash"
 def add_cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return resp
 app.json.ensure_ascii = False
 
@@ -216,6 +216,28 @@ def agent():
             })
 
     return ok({"reply": "（工具调用超过 3 轮，已停止）", "logs": logs})
+@app.put("/api/items/<int:item_id>")
+def update_item(item_id):
+    data = request.get_json(silent=True) or {}
+    con = get_db()
+    try:
+        row = con.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
+        if row is None:
+            return jsonify({"code": 404, "data": None, "msg": "没有这条"}), 404
+
+        title = (data.get("title", row["title"]) or "").strip()
+        if not title:
+            return jsonify({"code": 400, "data": None, "msg": "title 不能为空"}), 400
+
+        done = data.get("done", row["done"])
+        done = 1 if str(done) in ("1", "true", "True") else 0
+
+        con.execute("UPDATE items SET title = ?, done = ? WHERE id = ?", (title, done, item_id))
+        con.commit()
+        new_row = con.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
+        return ok(dict(new_row))
+    finally:
+        con.close()
 @app.errorhandler(Exception)
 def on_error(e):
     code = getattr(e, "code", 500)

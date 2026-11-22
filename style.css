@@ -100,3 +100,35 @@ footer { text-align: center; color: #9ca3af; font-size: 13px; padding: 24px 16px
 }
 #stop-btn { background: #e5e7eb; color: #374151; }
 #stop-btn { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+#list li { display: flex; align-items: center; gap: 8px; }
+#list li span { flex: 1; }
+#list li.done span { text-decoration: line-through; color: #9ca3af; }
+#list li input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+#list li button {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+#list li {
+  padding: 10px 4px;
+  border-bottom: 1px solid #f1f3f5;
+  transition: background .15s;
+}
+#list li:hover { background: #f8fafc; }
+#list li.done { opacity: .7; }
+#list li span { word-break: break-word; }
+
+#list li input[type="checkbox"] { accent-color: #2563eb; }
+
+#list li button:hover { background: #f3f4f6; border-color: #d1d5db; }
+#add-form button:hover,
+#agent-form button:hover { filter: brightness(.93); }
+#stop-btn:hover { filter: brightness(.97); }
+
+@media (max-width: 600px) {
+  #list li { gap: 6px; }
+  #list li button { padding: 6px 8px; font-size: 12px; }
+}
